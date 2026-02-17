@@ -62,13 +62,12 @@ test("form.watch('field') updates when input changes", async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization for this component,
-// allowing form.watch() to trigger re-renders as expected.
+// Workaround: Use useWatch instead of form.watch().
+// useWatch uses a subscription model that properly triggers re-renders with the compiler.
 test("form.watch('field') updates when input changes (workaround)", async () => {
   function WatchFieldComponent() {
-    'use no memo'
     const form = useForm({ defaultValues: { name: '' } })
-    const nameValue = form.watch('name')
+    const nameValue = useWatch({ name: 'name', control: form.control })
 
     return (
       <form>
@@ -124,13 +123,12 @@ test('form.watch() (no args) triggers re-render on any field change', async () =
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// form.watch() (no args) properly triggers re-renders on any field change.
+// Workaround: Use useWatch instead of form.watch().
+// This uses a subscription model that properly triggers re-renders with the compiler.
 test('form.watch() (no args) triggers re-render on any field change (workaround)', async () => {
   function WatchAllComponent() {
-    'use no memo'
     const form = useForm({ defaultValues: { firstName: '', lastName: '' } })
-    const allValues = form.watch()
+    const allValues = useWatch({ control: form.control })
 
     return (
       <form>
@@ -342,8 +340,9 @@ test('useFormContext() propagates updates to children', async () => {
   })
 })
 
-// Workaround: 'use no memo' on both parent and child components disables
-// compiler memoization, allowing useFormContext() to propagate updates.
+// Workaround: 'use no memo' is needed for useFormContext() as there's no
+// safe alternative. The child component must disable memoization or use
+// useWatch with control passed as a prop from parent.
 test('useFormContext() propagates updates to children (workaround)', async () => {
   function ChildDisplay() {
     'use no memo'
@@ -410,12 +409,14 @@ test('<Controller> updates on input change', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// <Controller> field changes propagate correctly.
+// Workaround: 'use no memo' is needed for <Controller> as there's no safe
+// alternative to the Controller component itself. However, we can use useWatch
+// for the watched value display.
 test('<Controller> updates on input change (workaround)', async () => {
   function ControllerComponent() {
     'use no memo'
     const form = useForm({ defaultValues: { color: '' } })
+    const colorValue = useWatch({ name: 'color', control: form.control })
 
     return (
       <form>
@@ -426,7 +427,7 @@ test('<Controller> updates on input change (workaround)', async () => {
             <input data-testid="controller-input-w" {...field} />
           )}
         />
-        <span data-testid="controller-value-w">{form.watch('color')}</span>
+        <span data-testid="controller-value-w">{colorValue}</span>
       </form>
     )
   }
@@ -477,8 +478,9 @@ test('useController updates on input change', async () => {
   })
 })
 
-// Workaround: 'use no memo' on both the controlled input component and the
-// parent disables compiler memoization, allowing useController to work.
+// Workaround: 'use no memo' is needed for useController as there's no safe
+// alternative to the useController hook itself. However, we can use useWatch
+// for the watched value display.
 test('useController updates on input change (workaround)', async () => {
   function ControlledInput({
     control,
@@ -495,11 +497,12 @@ test('useController updates on input change (workaround)', async () => {
   function UseControllerComponent() {
     'use no memo'
     const form = useForm({ defaultValues: { fruit: '' } })
+    const fruitValue = useWatch({ name: 'fruit', control: form.control })
 
     return (
       <form>
         <ControlledInput control={form.control} name="fruit" />
-        <span data-testid="usecontroller-value-w">{form.watch('fruit')}</span>
+        <span data-testid="usecontroller-value-w">{fruitValue}</span>
       </form>
     )
   }
@@ -669,22 +672,17 @@ test('getValues() in render returns fresh values after typing', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// getValues() returns fresh values on each render after form.watch()
-// triggers a re-render.
+// Workaround: Use useWatch instead of getValues() in render.
+// This uses a subscription model that works with the compiler.
 test('getValues() in render returns fresh values after typing (workaround)', async () => {
   function GetValuesComponent() {
-    'use no memo'
     const form = useForm({ defaultValues: { message: '' } })
-
-    form.watch()
-
-    const currentValues = form.getValues()
+    const messageValue = useWatch({ name: 'message', control: form.control })
 
     return (
       <form>
         <input data-testid="message-input-w" {...form.register('message')} />
-        <span data-testid="getvalues-result-w">{currentValues.message}</span>
+        <span data-testid="getvalues-result-w">{messageValue}</span>
       </form>
     )
   }
@@ -819,8 +817,8 @@ test('reset() clears form values and state', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// reset() properly clears form values and state in the UI.
+// Workaround: Use 'use no memo' for reset() as there's no safe alternative.
+// reset() is a mutating operation that needs the component to re-render to reflect changes.
 test('reset() clears form values and state (workaround)', async () => {
   function ResetComponent() {
     'use no memo'
@@ -1048,13 +1046,15 @@ test('reset() with new defaultValues updates form values', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// reset() with new defaultValues properly updates the watched value.
+// Workaround: Use 'use no memo' for reset() as there's no safe alternative.
+// reset() is a mutating operation that needs the component to re-render to reflect changes.
+// Note: We also use useWatch here instead of form.watch() for better practice, but
+// 'use no memo' is still required for reset() to work properly.
 test('reset() with new defaultValues updates form values (workaround)', async () => {
   function ResetWithNewDefaultsComponent() {
     'use no memo'
     const form = useForm({ defaultValues: { city: 'NYC' } })
-    const cityValue = form.watch('city')
+    const cityValue = useWatch({ name: 'city', control: form.control })
 
     return (
       <form>
@@ -1156,13 +1156,12 @@ test('watch in useEffect dependency array triggers effect', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// watch values used as useEffect dependencies properly trigger the effect.
+// Workaround: Use useWatch instead of form.watch() in useEffect dependencies.
+// This provides a proper reactive value that works with the compiler.
 test('watch in useEffect dependency array triggers effect (workaround)', async () => {
   function WatchInEffectDepsComponent() {
-    'use no memo'
     const form = useForm({ defaultValues: { query: '' } })
-    const queryValue = form.watch('query')
+    const queryValue = useWatch({ name: 'query', control: form.control })
     const [effectRuns, setEffectRuns] = React.useState(0)
 
     React.useEffect(() => {
@@ -1254,13 +1253,12 @@ test('Conditional fields render based on watched value', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// conditional fields based on watched values render correctly.
+// Workaround: Use useWatch instead of form.watch() for conditional fields.
+// This subscription-based API works with the compiler.
 test('Conditional fields render based on watched value (workaround)', async () => {
   function ConditionalFieldsComponent() {
-    'use no memo'
     const form = useForm({ defaultValues: { type: '', details: '' } })
-    const typeValue = form.watch('type')
+    const typeValue = useWatch({ name: 'type', control: form.control })
 
     return (
       <form>
@@ -1345,15 +1343,14 @@ test('Nested watch paths update on nested field changes', async () => {
   })
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// nested watch paths like 'user.address.city' update correctly.
+// Workaround: Use useWatch instead of form.watch() for nested paths.
+// This properly watches nested paths with the compiler.
 test('Nested watch paths update on nested field changes (workaround)', async () => {
   function NestedWatchComponent() {
-    'use no memo'
     const form = useForm({
       defaultValues: { user: { address: { city: '' } } },
     })
-    const cityValue = form.watch('user.address.city')
+    const cityValue = useWatch({ name: 'user.address.city', control: form.control })
 
     return (
       <form>
@@ -1470,11 +1467,10 @@ test('useFieldArray with watch reflects array changes', async () => {
   expect(screen.getByTestId('item-1')).not.toBeNull()
 })
 
-// Workaround: 'use no memo' disables compiler memoization so that
-// useFieldArray combined with form.watch() properly reflects array changes.
+// Workaround: Use useWatch instead of form.watch() for field arrays.
+// This properly watches field array changes with the compiler.
 test('useFieldArray with watch reflects array changes (workaround)', async () => {
   function FieldArrayWithWatchComponent() {
-    'use no memo'
     const form = useForm({
       defaultValues: { items: [{ name: 'Item 1' }] },
     })
@@ -1482,7 +1478,7 @@ test('useFieldArray with watch reflects array changes (workaround)', async () =>
       control: form.control,
       name: 'items',
     })
-    const itemsArray = form.watch('items')
+    const itemsArray = useWatch({ name: 'items', control: form.control })
 
     return (
       <form>
@@ -1602,6 +1598,44 @@ test('formState.isDirty via useFormContext updates after typing', async () => {
 
   await waitFor(() => {
     expect(screen.getByTestId('context-dirty-status').textContent).toBe('dirty')
+  })
+})
+
+// Workaround: Child component should use useFormState({ control }) with control
+// passed as prop from parent, providing a subscription-based API that works with the compiler.
+test('formState.isDirty via useFormContext updates after typing (workaround)', async () => {
+  function DirtyStatusDisplay({ control }: { control: any }) {
+    const { isDirty } = useFormState({ control })
+    return (
+      <span data-testid="context-dirty-status-w">
+        {isDirty ? 'dirty' : 'clean'}
+      </span>
+    )
+  }
+
+  function ParentFormWithDirty() {
+    const form = useForm({ defaultValues: { username: '' } })
+
+    return (
+      <FormProvider {...form}>
+        <form>
+          <input data-testid="username-input-w26" {...form.register('username')} />
+          <DirtyStatusDisplay control={form.control} />
+        </form>
+      </FormProvider>
+    )
+  }
+
+  render(<ParentFormWithDirty />)
+
+  // Initially should be clean
+  expect(screen.getByTestId('context-dirty-status-w').textContent).toBe('clean')
+
+  // Type something to make the form dirty
+  await userEvent.type(screen.getByTestId('username-input-w26'), 'a')
+
+  await waitFor(() => {
+    expect(screen.getByTestId('context-dirty-status-w').textContent).toBe('dirty')
   })
 })
 
