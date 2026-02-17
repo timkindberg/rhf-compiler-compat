@@ -98,7 +98,9 @@ These test every major `react-hook-form` API used during render:
 
 ### Workaround tests (12 tests)
 
-For each core API that **fails** under the compiler, there is a corresponding workaround test that adds `'use no memo'` to the component. These verify the workaround actually fixes the problem:
+For each core API that **fails** under the compiler, there is a corresponding workaround test that adds `'use no memo'` to the component. These verify that opting out of memoization fixes the problem:
+
+**Note:** While these tests use `'use no memo'`, the recommended approach is to use safe alternative APIs like `useWatch()` and `useFormState()` where available (see the Workarounds section below).
 
 | Core test that fails | Workaround test |
 |---------------------|-----------------|
@@ -151,6 +153,28 @@ Tested with `babel-plugin-react-compiler@19.1.0-rc.3`, `react-hook-form@^7.42.1`
 
 **Summary: 12 of 27 core tests fail** under the compiler (44% failure rate). All 12 workaround tests pass, confirming `'use no memo'` is an effective fix.
 
+## Workarounds
+
+For each breaking API, here are the recommended workarounds:
+
+| Breaking API | Recommended Workaround | Notes |
+|--------------|------------------------|-------|
+| `form.watch('field')` | Replace with `useWatch({ name: 'field', control })` | Hook-based subscription, triggers re-renders properly |
+| `form.watch()` (no args) | Replace with `useWatch({ control })` | Watches all fields via hook subscription |
+| `useFormContext()` + watch | **No alternative** -- Use `'use no memo'` | Context consumers are memoized by compiler |
+| `<Controller>` | **No alternative** -- Use `'use no memo'` | Control object interior mutability |
+| `useController` | **No alternative** -- Use `'use no memo'` | Control object interior mutability |
+| `getValues()` in render | Replace with `useWatch({ name: 'field', control })` for specific fields, OR move `getValues()` to callbacks/effects | Avoid calling during render; use hooks for reactive values |
+| `reset()` | **No alternative** -- Use `'use no memo'` | Reset behavior breaks under memoization |
+| `reset()` with new defaults | **No alternative** -- Use `'use no memo'` | Same as reset() |
+| `watch` in useEffect deps | Replace watched value with `useWatch({ name: 'field', control })` | Effect deps need reactive values from hooks |
+| Conditional fields via watch | Replace `form.watch('type')` with `useWatch({ name: 'type', control })` | Conditional rendering needs reactive hook values |
+| Nested watch paths | Replace `form.watch('user.address.city')` with `useWatch({ name: 'user.address.city', control })` | Deep paths work with useWatch |
+| `useFieldArray` + `watch` | Replace `form.watch('items')` with `useWatch({ name: 'items', control })` | Array watching needs hook subscription |
+| `formState.isDirty` via context | Child should use `useFormState({ control })` with control passed as prop | Hook-based state access instead of context |
+
+**Key principle:** Replace `form.watch()` with `useWatch()` and `form.formState` access via context with `useFormState()` wherever possible. Only use `'use no memo'` when no safe API alternative exists (Controller, useController, direct context usage, reset operations).
+
 ### Surprising findings
 
 The **formState** APIs (`errors`, `isDirty`, `isSubmitting`, `touchedFields`, `submitCount`, `isValidating`) all **pass** despite initial expectations. The proxy-based subscription mechanism in react-hook-form triggers re-renders even under the compiler.
@@ -196,27 +220,7 @@ function MyFormComponent() {
 
 This tells React Compiler to skip memoizing that specific function. It must be added to **each** component or hook that reads from the form during render.
 
-### Safer alternatives (no workaround needed)
-
-Instead of using `form.watch()`, prefer `useWatch()`:
-
-```tsx
-// Instead of this (breaks under compiler):
-const value = form.watch('field')
-
-// Use this (works under compiler):
-const value = useWatch({ name: 'field', control: form.control })
-```
-
-Instead of reading `form.formState` in render (currently works but fragile), prefer `useFormState()`:
-
-```tsx
-// Instead of this (works now, but fragile):
-const { errors, isDirty } = form.formState
-
-// Use this (more future-proof):
-const { errors, isDirty } = useFormState({ control: form.control })
-```
+**However, using `'use no memo'` should be a last resort.** See the [Workarounds section](#workarounds) for safe API alternatives that don't require opting out of the compiler.
 
 ## Contributing
 
