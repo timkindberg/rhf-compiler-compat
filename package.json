@@ -1,0 +1,26 @@
+{
+  "name": "rhf-compiler-compat",
+  "version": "1.0.0",
+  "description": "Test react-hook-form API compatibility with React Compiler",
+  "scripts": {
+    "test": "bun test",
+    "test:compiler": "bun test --preload ./compiler-plugin.ts",
+    "test:both": "bash run-tests.sh"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "^18.0.2",
+    "react-hook-form": "^7.42.1",
+    "react-compiler-runtime": "^1.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.7",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
+    "@happy-dom/global-registrator": "^20.6.1",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "babel-plugin-react-compiler": "19.1.0-rc.3",
+    "happy-dom": "^15.0.0"
+  }
+}
