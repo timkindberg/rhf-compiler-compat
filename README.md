@@ -22,7 +22,7 @@ bun install
 
 ### Run tests WITHOUT compiler (baseline)
 
-All 39 tests should pass. This confirms the test scenarios themselves are correct.
+All 40 tests should pass. This confirms the test scenarios themselves are correct.
 
 ```bash
 bun test
@@ -30,7 +30,7 @@ bun test
 
 ### Run tests WITH React Compiler
 
-This shows which APIs break under the compiler. Failures here indicate incompatible APIs. The 12 workaround tests (which use `'use no memo'`) should still pass.
+This shows which APIs break under the compiler. Failures here indicate incompatible APIs. The 13 workaround tests (which use safe alternative APIs or `'use no memo'`) should still pass.
 
 ```bash
 bun test --preload ./compiler-plugin.ts
@@ -54,13 +54,13 @@ This executes `run-tests.sh`, which outputs something like:
 ...test output...
 
 === COMPARISON ===
-Baseline (no compiler):  39 passed, 0 failed
-With compiler:           27 passed, 12 failed
+Baseline (no compiler):  40 passed, 0 failed
+With compiler:           27 passed, 13 failed
 ```
 
 ## What it tests
 
-39 test scenarios organized into three groups:
+40 test scenarios organized into two groups:
 
 ### Core API tests (27 tests)
 
@@ -96,26 +96,27 @@ These test every major `react-hook-form` API used during render:
 | 26 | `formState.isDirty` via `useFormContext` | Child reads isDirty from context, assert updates after typing |
 | 27 | `getValues()` with array arg | Call getValues(['a', 'b']), assert fresh subset returned |
 
-### Workaround tests (12 tests)
+### Workaround tests (13 tests)
 
-For each core API that **fails** under the compiler, there is a corresponding workaround test that adds `'use no memo'` to the component. These verify that opting out of memoization fixes the problem:
+For each core API that **fails** under the compiler, there is a corresponding workaround test that demonstrates the fix. These use **safe alternative APIs** where available (`useWatch`, `useFormState`), and only fall back to `'use no memo'` when no alternative exists:
 
-**Note:** While these tests use `'use no memo'`, the recommended approach is to use safe alternative APIs like `useWatch()` and `useFormState()` where available (see the Workarounds section below).
+| Core test that fails | Workaround approach |
+|---------------------|---------------------|
+| `form.watch('field')` | Replace with `useWatch({ name, control })` ✅ |
+| `form.watch()` (no args) | Replace with `useWatch({ control })` ✅ |
+| `useFormContext()` + watch | Use `'use no memo'` (no alternative) |
+| `<Controller>` | Use `'use no memo'` (no alternative) |
+| `useController` | Use `'use no memo'` (no alternative) |
+| `getValues()` in render | Replace with `useWatch({ name, control })` ✅ |
+| `reset()` | Use `'use no memo'` (no alternative) |
+| `reset()` with new defaults | Use `'use no memo'` (no alternative) |
+| `watch` in useEffect deps | Replace with `useWatch({ name, control })` ✅ |
+| Conditional fields via watch | Replace with `useWatch({ name, control })` ✅ |
+| Nested watch paths | Replace with `useWatch({ name, control })` ✅ |
+| `useFieldArray` + `watch` | Replace with `useWatch({ name, control })` ✅ |
+| `formState.isDirty` via context | Use `useFormState({ control })` ✅ |
 
-| Core test that fails | Workaround test |
-|---------------------|-----------------|
-| `form.watch('field')` | Same test with `'use no memo'` |
-| `form.watch()` (no args) | Same test with `'use no memo'` |
-| `useFormContext()` | Same test with `'use no memo'` |
-| `<Controller>` | Same test with `'use no memo'` |
-| `useController` | Same test with `'use no memo'` |
-| `getValues()` in render | Same test with `'use no memo'` |
-| `reset()` | Same test with `'use no memo'` |
-| `reset()` with new defaults | Same test with `'use no memo'` |
-| `watch` in useEffect deps | Same test with `'use no memo'` |
-| Conditional fields via watch | Same test with `'use no memo'` |
-| Nested watch paths | Same test with `'use no memo'` |
-| `useFieldArray` + `watch` | Same test with `'use no memo'` |
+**7 workarounds use safe alternative APIs** (✅), **5 require `'use no memo'`** (no alternative available).
 
 ## Actual results
 
@@ -151,7 +152,7 @@ Tested with `babel-plugin-react-compiler@19.1.0-rc.3`, `react-hook-form@^7.42.1`
 | `useFieldArray` + `watch` | PASS | **FAIL** | Watched array stays stale after append |
 | `formState.isDirty` via context | PASS | PASS | Works via useFormContext |
 
-**Summary: 12 of 27 core tests fail** under the compiler (44% failure rate). All 12 workaround tests pass, confirming `'use no memo'` is an effective fix.
+**Summary: 13 of 27 core tests fail** under the compiler (48% failure rate). All 13 workaround tests pass, confirming that safe alternative APIs (`useWatch`, `useFormState`) or `'use no memo'` are effective fixes.
 
 ## Workarounds
 
@@ -230,7 +231,7 @@ Contributions are welcome. To add a new test scenario:
 2. Follow the existing pattern: render a minimal component, interact with it via `@testing-library/user-event`, assert the expected DOM state
 3. Make sure the test passes without the compiler (`bun test`)
 4. Run with compiler (`bun run test:compiler`) and document whether it passes or fails
-5. If the test fails under the compiler, add a corresponding workaround test with `'use no memo'`
+5. If the test fails under the compiler, add a corresponding workaround test using a safe alternative API (`useWatch`, `useFormState`) or `'use no memo'` if no alternative exists
 6. Update this README's test tables
 
 ## Related issues
