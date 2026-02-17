@@ -1,21 +1,22 @@
+$ bash run-tests.sh
 === Running WITHOUT React Compiler (baseline) ===
 bun test v1.3.4 (5eb2145b)
 
- 27 pass
+ 40 pass
  0 fail
- 59 expect() calls
-Ran 27 tests across 1 file. [974.00ms]
+ 91 expect() calls
+Ran 40 tests across 1 file. [1169.00ms]
 
 === Running WITH React Compiler ===
 bun test v1.3.4 (5eb2145b)
 
 rhf-compat.test.tsx:
 101 | 
-102 | // ---------------------------------------------------------------------------
-103 | // Test 3: formState.errors appears after invalid submit
-104 | // ---------------------------------------------------------------------------
-105 | // formState is a proxy object with interior mutability. The compiler
-106 | // memoizes access to formState.errors because the formState reference
+102 |     return (
+103 |       <form>
+104 |         <input data-testid="first-input" {...form.register('firstName')} />
+105 |         <input data-testid="last-input" {...form.register('lastName')} />
+106 |         <span data-testid="all-values">
                                                                   ^
 error: expect(received).toBe(expected)
 
@@ -44,13 +45,13 @@ Ignored nodes: comments, script, style
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) form.watch('field') updates when input changes [1050.29ms]
-205 |         resolveSubmit = resolve
-206 |       })
-207 |     })
-208 | 
-209 |     return (
-210 |       <form onSubmit={onSubmit}>
+(fail) form.watch('field') updates when input changes [1045.31ms]
+285 |   // Should be submitting while the async handler is pending
+286 |   await waitFor(() => {
+287 |     expect(screen.getByTestId('submitting-status').textContent).toBe(
+288 |       'submitting'
+289 |     )
+290 |   })
                                                                ^
 error: expect(received).toBe(expected)
 
@@ -81,17 +82,17 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:210:58)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:290:58)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) form.watch() (no args) triggers re-render on any field change [1018.81ms]
-635 |     ).toBe('')
-636 |   })
-637 | })
-638 | // ---------------------------------------------------------------------------
-639 | // Test 15: formState.touchedFields updates when fields are touched
-640 | // ---------------------------------------------------------------------------
+(fail) form.watch() (no args) triggers re-render on any field change [1018.36ms]
+819 | 
+820 | // Workaround: Use 'use no memo' for reset() as there's no safe alternative.
+821 | // reset() is a mutating operation that needs the component to re-render to reflect changes.
+822 | test('reset() clears form values and state (workaround)', async () => {
+823 |   function ResetComponent() {
+824 |     'use no memo'
                                                                   ^
 error: expect(received).toBe(expected)
 
@@ -116,17 +117,17 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:640:61)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:824:61)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) useFormContext() propagates updates to children [1033.85ms]
-718 |     const form = useForm({
-719 |       defaultValues: { username: '' },
-720 |       mode: 'onChange',
-721 |     })
-722 |     const isValidating = form.formState.isValidating
-723 | 
+(fail) useFormContext() propagates updates to children [1031.48ms]
+941 |         <button data-testid="submit-btn" type="submit">Submit</button>
+942 |         <span data-testid="submit-count">{submitCount}</span>
+943 |       </form>
+944 |     )
+945 |   }
+946 | 
                                                                      ^
 error: expect(received).toBe(expected)
 
@@ -152,18 +153,18 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:723:64)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:946:64)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) <Controller> updates on input change [1020.29ms]
-824 | 
-825 |   await userEvent.type(screen.getByTestId('message-input'), 'hello')
-826 | 
-827 |   await waitFor(() => {
-828 |     expect(screen.getByTestId('callback-value').textContent).toBe('hello')
-829 |   })
-                                                                        ^
+(fail) <Controller> updates on input change [1017.18ms]
+1086 | // Test 19: watch() with callback function
+1087 | // ---------------------------------------------------------------------------
+1088 | // watch((data) => ...) subscribes to all changes with a callback.
+1089 | // Compiler may not trigger the callback on form updates.
+1090 | 
+1091 | test('watch() with callback is invoked on form changes', async () => {
+                                                                         ^
 error: expect(received).toBe(expected)
 
 Expected: "apple"
@@ -188,16 +189,17 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:829:67)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:1091:67)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) useController updates on input change [1019.44ms]
-1245 |   await waitFor(() => {
-1246 |     expect(screen.getByTestId('value-1').textContent).toBe('sync-test')
-1247 |     expect(screen.getByTestId('value-2').textContent).toBe('sync-test')
-1248 |   })
-1249 | })
+(fail) useController updates on input change [1018.30ms]
+1556 | 
+1557 | // ---------------------------------------------------------------------------
+1558 | // Test 26: formState.isDirty via useFormContext updates after typing
+1559 | // ---------------------------------------------------------------------------
+1560 | // When formState is accessed via useFormContext() in a child component,
+1561 | // the compiler may cache the child's render output because the context
                                                                       ^
 error: expect(received).toBe(expected)
 
@@ -222,16 +224,16 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:1249:64)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:1561:64)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) getValues() in render returns fresh values after typing [1024.28ms]
-1490 |   await waitFor(() => {
-1491 |     expect(screen.getByTestId('value-1').textContent).toBe('sync-test')
-1492 |     expect(screen.getByTestId('value-2').textContent).toBe('sync-test')
-1493 |   })
-1494 | })
+(fail) getValues() in render returns fresh values after typing [1021.51ms]
+1881 | 
+1882 |   await waitFor(() => {
+1883 |     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+1884 |   })
+1885 | })
                                                                  ^
 error: expect(received).toBe(expected)
 
@@ -274,16 +276,16 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:1494:59)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:1885:59)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) reset() clears form values and state [1051.90ms]
-1875 |   await waitFor(() => {
-1876 |     expect(screen.getByTestId('value-1').textContent).toBe('sync-test')
-1877 |     expect(screen.getByTestId('value-2').textContent).toBe('sync-test')
-1878 |   })
-1879 | })
+(fail) reset() clears form values and state [1066.84ms]
+2333 | 
+2334 |   await waitFor(() => {
+2335 |     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+2336 |   })
+2337 | })
                                                                 ^
 error: expect(received).toBe(expected)
 
@@ -316,16 +318,16 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:1879:58)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:2337:58)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) reset() with new defaultValues updates form values [1008.98ms]
-2072 |   await waitFor(() => {
-2073 |     expect(screen.getByTestId('value-1').textContent).toBe('sync-test')
-2074 |     expect(screen.getByTestId('value-2').textContent).toBe('sync-test')
-2075 |   })
-2076 | })
+(fail) reset() with new defaultValues updates form values [1020.03ms]
+2572 | 
+2573 |   await waitFor(() => {
+2574 |     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+2575 |   })
+2576 | })
                                                                                   ^
 error: expect(received).toBeGreaterThan(expected)
 
@@ -352,11 +354,11 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:2076:76)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:2576:76)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) watch in useEffect dependency array triggers effect [1016.43ms]
+(fail) watch in useEffect dependency array triggers effect [1020.81ms]
 158 |   });
 159 | }
 160 | function waitForWrapper(callback, options) {
@@ -425,14 +427,14 @@ Ignored nodes: comments, script, style
   [36m</body>[39m
 [36m</html>[39m
       at waitForWrapper (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:163:31)
-      at /Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:2685:7
+      at /Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:3368:7
       at processTicksAndRejections (native:1:1)
-(fail) Conditional fields render based on watched value [1012.70ms]
-2298 |   await waitFor(() => {
-2299 |     expect(screen.getByTestId('value-1').textContent).toBe('sync-test')
-2300 |     expect(screen.getByTestId('value-2').textContent).toBe('sync-test')
-2301 |   })
-2302 | })
+(fail) Conditional fields render based on watched value [1022.05ms]
+3029 | 
+3030 |   await waitFor(() => {
+3031 |     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+3032 |   })
+3033 | })
                                                                   ^
 error: expect(received).toBe(expected)
 
@@ -457,16 +459,16 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:2302:60)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:3033:60)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) Nested watch paths update on nested field changes [1018.89ms]
-2486 |   await waitFor(() => {
-2487 |     expect(screen.getByTestId('value-1').textContent).toBe('sync-test')
-2488 |     expect(screen.getByTestId('value-2').textContent).toBe('sync-test')
-2489 |   })
-2490 | })
+(fail) Nested watch paths update on nested field changes [1025.02ms]
+3301 | 
+3302 |   await waitFor(() => {
+3303 |     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+3304 |   })
+3305 | })
                                                                 ^
 error: expect(received).toBe(expected)
 
@@ -503,17 +505,53 @@ Ignored nodes: comments, script, style
     [36m</div>[39m
   [36m</body>[39m
 [36m</html>[39m
-      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:2490:58)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:3305:58)
       at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
       at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
       at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
-(fail) useFieldArray with watch reflects array changes [1009.70ms]
+(fail) useFieldArray with watch reflects array changes [1012.62ms]
+3631 | 
+3632 |   await waitFor(() => {
+3633 |     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+3634 |   })
+3635 | })
+                                                                          ^
+error: expect(received).toBe(expected)
 
- 15 pass
- 12 fail
- 254 expect() calls
-Ran 27 tests across 1 file. [13.49s]
+Expected: "dirty"
+Received: "clean"
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<form>[39m
+        [36m<input[39m
+          [33mdata-testid[39m=[32m"username-input"[39m
+          [33mname[39m=[32m"username"[39m
+        [36m/>[39m
+        [36m<span[39m
+          [33mdata-testid[39m=[32m"context-dirty-status"[39m
+        [36m>[39m
+          [0mclean[0m
+        [36m</span>[39m
+      [36m</form>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/rhf-compat.test.tsx:3635:68)
+      at runWithExpensiveErrorDiagnosticsDisabled (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@testing-library/dom/dist/wait-for.js:124:36)
+      at <anonymous> (/Users/tim.kindberg/projects/react-compiler/rhf-compiler-compat/node_modules/@happy-dom/global-registrator/node_modules/happy-dom/lib/window/BrowserWindow.js:1262:30)
+(fail) formState.isDirty via useFormContext updates after typing [1025.61ms]
+
+ 27 pass
+ 13 fail
+ 305 expect() calls
+Ran 40 tests across 1 file. [15.41s]
 
 === COMPARISON ===
 Baseline (no compiler):  0 passed, 0 failed
-With compiler:           0 passed, 0 failed
+With compiler:           0 passed, 13 failed
