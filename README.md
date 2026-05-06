@@ -8,9 +8,11 @@ React Compiler automatically memoizes components based on reference identity. `r
 
 This is a [known, documented incompatibility](https://react.dev/reference/eslint-plugin-react-hooks/lints/incompatible-library). This test suite provides **empirical evidence** of exactly which APIs break, rather than relying solely on GitHub issue reports.
 
+The React Compiler 1.0 GA recognises many `react-hook-form` access patterns and bails out of memoization automatically -- but only when the form object is obtained directly from `useForm()` in the same component. When the form object is read via `useFormContext()` in a child component, the auto-bailout no longer applies and the interior-mutability issue still manifests.
+
 ## Prerequisites
 
-- [Bun](https://bun.sh/) v1.0 or later
+- [Bun](https://bun.sh/) v1.3 or later (tested with **v1.3.13**, pinned in `package.json`'s `packageManager` field)
 
 ## Installation
 
@@ -30,8 +32,6 @@ bun test
 
 ### Run tests WITH React Compiler
 
-This shows which APIs break under the compiler. Failures here indicate incompatible APIs. The 13 workaround tests (which use safe alternative APIs or `'use no memo'`) should still pass.
-
 ```bash
 bun test --preload ./compiler-plugin.ts
 ```
@@ -44,7 +44,7 @@ Runs both modes and prints a summary showing how many tests pass/fail in each mo
 bun run test:both
 ```
 
-This executes `run-tests.sh`, which outputs something like:
+This executes `run-tests.sh`, which outputs:
 
 ```
 === Running WITHOUT React Compiler (baseline) ===
@@ -55,7 +55,7 @@ This executes `run-tests.sh`, which outputs something like:
 
 === COMPARISON ===
 Baseline (no compiler):  40 passed, 0 failed
-With compiler:           27 passed, 13 failed
+With compiler:           38 passed, 2 failed
 ```
 
 ## What it tests
@@ -66,129 +66,101 @@ With compiler:           27 passed, 13 failed
 
 These test every major `react-hook-form` API used during render:
 
-| # | API Under Test | What the test checks |
-|---|----------------|----------------------|
-| 1 | `form.watch('field')` | Type in input, assert watched value updates in DOM |
-| 2 | `form.watch()` (no args) | Type in input, assert component re-renders with all values |
-| 3 | `formState.errors` | Submit empty required field, assert error message appears |
-| 4 | `formState.isDirty` | Type in field, assert isDirty text updates |
-| 5 | `formState.isSubmitting` | Submit with async handler, assert "submitting" text shown |
-| 6 | `useFormContext()` | Child component reads watched value from context |
-| 7 | `<Controller>` | Render controlled input, type, assert value shown |
-| 8 | `useController` | Hook-based controlled input, type, assert value shown |
-| 9 | `useWatch({ control })` | Watch with explicit control prop, assert updates |
-| 10 | `useWatch()` (context) | Watch without control (via FormProvider), assert updates |
-| 11 | `useFormState()` | Submit empty required field, assert error via hook |
-| 12 | `getValues()` in render | Read value in render after user types, assert fresh |
-| 13 | `getFieldState()` in render | Touch field, assert fieldState reflects it |
-| 14 | `reset()` | Fill form, click reset button, assert values cleared |
-| 15 | `formState.touchedFields` | Touch field, assert touchedFields updates |
-| 16 | `formState.submitCount` | Submit form multiple times, assert count increments |
-| 17 | `formState.isValidating` | Submit with async validator, assert isValidating shown |
-| 18 | `reset()` with new defaults | Reset with new defaultValues, assert form updates |
-| 19 | `watch()` with callback | Subscribe via callback, assert callback fires on change |
-| 20 | `watch` in useEffect deps | Watch value in useEffect dependency array, assert effect fires |
-| 21 | Conditional fields via watch | Show/hide fields based on watched select value |
-| 22 | Nested watch paths | Watch `user.address.city`, assert deep changes propagate |
-| 23 | `setValue` then `watch` | Call setValue programmatically, assert watch returns updated value |
-| 24 | `useFieldArray` + `watch` | Append items to field array, assert watched array updates |
-| 25 | `formState` destructuring | Destructure formState, assert fields reflect changes |
-| 26 | `formState.isDirty` via `useFormContext` | Child reads isDirty from context, assert updates after typing |
-| 27 | `getValues()` with array arg | Call getValues(['a', 'b']), assert fresh subset returned |
+| #   | API Under Test                           | What the test checks                                               |
+| --- | ---------------------------------------- | ------------------------------------------------------------------ |
+| 1   | `form.watch('field')`                    | Type in input, assert watched value updates in DOM                 |
+| 2   | `form.watch()` (no args)                 | Type in input, assert component re-renders with all values         |
+| 3   | `formState.errors`                       | Submit empty required field, assert error message appears          |
+| 4   | `formState.isDirty`                      | Type in field, assert isDirty text updates                         |
+| 5   | `formState.isSubmitting`                 | Submit with async handler, assert "submitting" text shown          |
+| 6   | `useFormContext()`                       | Child component reads watched value from context                   |
+| 7   | `<Controller>`                           | Render controlled input, type, assert value shown                  |
+| 8   | `useController`                          | Hook-based controlled input, type, assert value shown              |
+| 9   | `useWatch({ control })`                  | Watch with explicit control prop, assert updates                   |
+| 10  | `useWatch()` (context)                   | Watch without control (via FormProvider), assert updates           |
+| 11  | `useFormState()`                         | Submit empty required field, assert error via hook                 |
+| 12  | `getValues()` in render                  | Read value in render after user types, assert fresh                |
+| 13  | `getFieldState()` in render              | Touch field, assert fieldState reflects it                         |
+| 14  | `reset()`                                | Fill form, click reset button, assert values cleared               |
+| 15  | `formState.touchedFields`                | Touch field, assert touchedFields updates                          |
+| 16  | `formState.submitCount`                  | Submit form multiple times, assert count increments                |
+| 17  | `formState.isValidating`                 | Submit with async validator, assert isValidating shown             |
+| 18  | `reset()` with new defaults              | Reset with new defaultValues, assert form updates                  |
+| 19  | `watch()` with callback                  | Subscribe via callback, assert callback fires on change            |
+| 20  | `watch` in useEffect deps                | Watch value in useEffect dependency array, assert effect fires     |
+| 21  | Conditional fields via watch             | Show/hide fields based on watched select value                     |
+| 22  | Nested watch paths                       | Watch `user.address.city`, assert deep changes propagate           |
+| 23  | `setValue` then `watch`                  | Call setValue programmatically, assert watch returns updated value |
+| 24  | `useFieldArray` + `watch`                | Append items to field array, assert watched array updates          |
+| 25  | `formState` destructuring                | Destructure formState, assert fields reflect changes               |
+| 26  | `formState.isDirty` via `useFormContext` | Child reads isDirty from context, assert updates after typing      |
+| 27  | `getValues()` with array arg             | Call getValues(['a', 'b']), assert fresh subset returned           |
 
 ### Workaround tests (13 tests)
 
-For each core API that **fails** under the compiler, there is a corresponding workaround test that demonstrates the fix. These use **safe alternative APIs** where available (`useWatch`, `useFormState`), and only fall back to `'use no memo'` when no alternative exists:
-
-| Core test that fails | Workaround approach |
-|---------------------|---------------------|
-| `form.watch('field')` | Replace with `useWatch({ name, control })` ✅ |
-| `form.watch()` (no args) | Replace with `useWatch({ control })` ✅ |
-| `useFormContext()` + watch | Use `'use no memo'` (no alternative) |
-| `<Controller>` | Use `'use no memo'` (no alternative) |
-| `useController` | Use `'use no memo'` (no alternative) |
-| `getValues()` in render | Replace with `useWatch({ name, control })` ✅ |
-| `reset()` | Use `'use no memo'` (no alternative) |
-| `reset()` with new defaults | Use `'use no memo'` (no alternative) |
-| `watch` in useEffect deps | Replace with `useWatch({ name, control })` ✅ |
-| Conditional fields via watch | Replace with `useWatch({ name, control })` ✅ |
-| Nested watch paths | Replace with `useWatch({ name, control })` ✅ |
-| `useFieldArray` + `watch` | Replace with `useWatch({ name, control })` ✅ |
-| `formState.isDirty` via context | Use `useFormState({ control })` ✅ |
-
-**7 workarounds use safe alternative APIs** (✅), **5 require `'use no memo'`** (no alternative available).
+For each core API that fails under the compiler, there is a corresponding workaround test that demonstrates a safe alternative -- typically a hook-based subscription (`useWatch`, `useFormState`) or `'use no memo'` when no alternative exists.
 
 ## Actual results
 
-Tested with `babel-plugin-react-compiler@19.1.0-rc.3`, `react-hook-form@^7.42.1`, `react@18.3.1`:
+Tested with `babel-plugin-react-compiler@1.0.0` (GA), `react-hook-form@^7.75.0`, `react@19.2.5`, `babel-plugin-react-compiler` `target: '19'`:
 
-| API | Without Compiler | With Compiler | Notes |
-|-----|-----------------|---------------|-------|
-| `form.watch('field')` | PASS | **FAIL** | Confirmed -- [#11910](https://github.com/react-hook-form/react-hook-form/issues/11910), [#12598](https://github.com/react-hook-form/react-hook-form/issues/12598) |
-| `form.watch()` (no args) | PASS | **FAIL** | Same interior mutability issue |
-| `formState.errors` | PASS | PASS | Works -- proxy subscription triggers re-render |
-| `formState.isDirty` | PASS | PASS | Works -- proxy subscription triggers re-render |
-| `formState.isSubmitting` | PASS | PASS | Works -- proxy subscription triggers re-render |
-| `formState.touchedFields` | PASS | PASS | Works -- proxy subscription triggers re-render |
-| `formState.submitCount` | PASS | PASS | Works -- proxy subscription triggers re-render |
-| `formState.isValidating` | PASS | PASS | Works -- proxy subscription triggers re-render |
-| `formState` destructuring | PASS | PASS | Works -- destructuring accesses proxy correctly |
-| `useFormContext()` + watch | PASS | **FAIL** | Confirmed -- [#12618](https://github.com/react-hook-form/react-hook-form/issues/12618) |
-| `<Controller>` | PASS | **FAIL** | Confirmed -- [#12298](https://github.com/react-hook-form/react-hook-form/issues/12298) |
-| `useController` | PASS | **FAIL** | Same as Controller |
-| `useWatch({ control })` | PASS | PASS | Hook-based subscription works |
-| `useWatch()` (context) | PASS | PASS | Hook-based subscription works |
-| `useFormState()` | PASS | PASS | Hook-based subscription works |
-| `getValues()` in render | PASS | **FAIL** | Interior mutability -- cached by compiler |
-| `getValues(['a','b'])` | PASS | PASS | Array variant works (different code path) |
-| `getFieldState()` in render | PASS | PASS | Works in our tests |
-| `reset()` | PASS | **FAIL** | Compiler caches stale post-reset state |
-| `reset()` with new defaults | PASS | **FAIL** | Same issue as reset() |
-| `watch()` with callback | PASS | PASS | Callback-based subscription works |
-| `watch` in useEffect deps | PASS | **FAIL** | Effect never re-runs with stale watch value |
-| Conditional fields via watch | PASS | **FAIL** | Conditional sections never appear |
-| Nested watch paths | PASS | **FAIL** | Deep property updates don't propagate |
-| `setValue` + `watch` | PASS | PASS | Programmatic setValue triggers re-render |
-| `useFieldArray` + `watch` | PASS | **FAIL** | Watched array stays stale after append |
-| `formState.isDirty` via context | PASS | PASS | Works via useFormContext |
+| API                             | Without Compiler | With Compiler | Notes                                                                                                                                |
+| ------------------------------- | ---------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `form.watch('field')`           | PASS             | PASS          | Auto-bailed-out by RC 1.0 when called on a `useForm()` return value in the same component                                            |
+| `form.watch()` (no args)        | PASS             | PASS          | Same as above                                                                                                                        |
+| `formState.errors`              | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
+| `formState.isDirty`             | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
+| `formState.isSubmitting`        | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
+| `formState.touchedFields`       | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
+| `formState.submitCount`         | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
+| `formState.isValidating`        | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
+| `formState` destructuring       | PASS             | PASS          | Destructuring accesses the proxy correctly                                                                                           |
+| `useFormContext()` + watch      | PASS             | **FAIL** ❌   | Auto-bailout doesn't apply through the context boundary -- [#12618](https://github.com/react-hook-form/react-hook-form/issues/12618) |
+| `<Controller>`                  | PASS             | PASS          | Internal `useController` subscribes independently                                                                                    |
+| `useController`                 | PASS             | PASS          | Hook-based subscription works                                                                                                        |
+| `useWatch({ control })`         | PASS             | PASS          | Hook-based subscription works                                                                                                        |
+| `useWatch()` (context)          | PASS             | PASS          | Hook-based subscription works                                                                                                        |
+| `useFormState()`                | PASS             | PASS          | Hook-based subscription works                                                                                                        |
+| `getValues()` in render         | PASS             | PASS          | Auto-bailed-out when called on a `useForm()` return value                                                                            |
+| `getValues(['a','b'])`          | PASS             | PASS          | Array variant works                                                                                                                  |
+| `getFieldState()` in render     | PASS             | PASS          | Works                                                                                                                                |
+| `reset()`                       | PASS             | PASS          | Works (test asserts DOM `input.value` after reset)                                                                                   |
+| `reset()` with new defaults     | PASS             | PASS          | Works                                                                                                                                |
+| `watch()` with callback         | PASS             | PASS          | Callback-based subscription works                                                                                                    |
+| `watch` in useEffect deps       | PASS             | PASS          | Effect re-runs when the watched value changes                                                                                        |
+| Conditional fields via watch    | PASS             | PASS          | Conditional sections render and hide as expected                                                                                     |
+| Nested watch paths              | PASS             | PASS          | Deep property updates propagate                                                                                                      |
+| `setValue` + `watch`            | PASS             | PASS          | Programmatic setValue triggers re-render                                                                                             |
+| `useFieldArray` + `watch`       | PASS             | PASS          | Watched array updates after append                                                                                                   |
+| `formState.isDirty` via context | PASS             | **FAIL** ❌   | Auto-bailout doesn't apply through the context boundary                                                                              |
 
-**Summary: 13 of 27 core tests fail** under the compiler (48% failure rate). All 13 workaround tests pass, confirming that safe alternative APIs (`useWatch`, `useFormState`) or `'use no memo'` are effective fixes.
+**Summary: 2 of 27 core tests fail** under the compiler -- both involve `useFormContext()` in a child component reading interior-mutable values. All 13 workaround tests pass.
 
 ## Workarounds
 
-For each breaking API, here are the recommended workarounds:
+The remaining failure modes both center on `useFormContext()` in a child component:
 
-| Breaking API | Recommended Workaround | Notes |
-|--------------|------------------------|-------|
-| `form.watch('field')` | Replace with `useWatch({ name: 'field', control })` | Hook-based subscription, triggers re-renders properly |
-| `form.watch()` (no args) | Replace with `useWatch({ control })` | Watches all fields via hook subscription |
-| `useFormContext()` + watch | **No alternative** -- Use `'use no memo'` | Context consumers are memoized by compiler |
-| `<Controller>` | **No alternative** -- Use `'use no memo'` | Control object interior mutability |
-| `useController` | **No alternative** -- Use `'use no memo'` | Control object interior mutability |
-| `getValues()` in render | Replace with `useWatch({ name: 'field', control })` for specific fields, OR move `getValues()` to callbacks/effects | Avoid calling during render; use hooks for reactive values |
-| `reset()` | **No alternative** -- Use `'use no memo'` | Reset behavior breaks under memoization |
-| `reset()` with new defaults | **No alternative** -- Use `'use no memo'` | Same as reset() |
-| `watch` in useEffect deps | Replace watched value with `useWatch({ name: 'field', control })` | Effect deps need reactive values from hooks |
-| Conditional fields via watch | Replace `form.watch('type')` with `useWatch({ name: 'type', control })` | Conditional rendering needs reactive hook values |
-| Nested watch paths | Replace `form.watch('user.address.city')` with `useWatch({ name: 'user.address.city', control })` | Deep paths work with useWatch |
-| `useFieldArray` + `watch` | Replace `form.watch('items')` with `useWatch({ name: 'items', control })` | Array watching needs hook subscription |
-| `formState.isDirty` via context | Child should use `useFormState({ control })` with control passed as prop | Hook-based state access instead of context |
+| Breaking API                                     | Recommended Workaround                                                                                                                                               |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useFormContext()` + `form.watch(...)` in child  | Replace with `useWatch({ name, control })`. Pass `control` from `useFormContext()` or as a prop. The hook-based subscription is the supported, compiler-safe pattern |
+| `useFormContext()` + `form.formState.X` in child | Replace with `useFormState({ control })`. Same idea: a hook-based subscription rather than reading the proxy through the context value                               |
 
-**Key principle:** Replace `form.watch()` with `useWatch()` and `form.formState` access via context with `useFormState()` wherever possible. Only use `'use no memo'` when no safe API alternative exists (Controller, useController, direct context usage, reset operations).
+If neither alternative is acceptable, fall back to `'use no memo'` on the affected child component. See the [`'use no memo'` section](#the-workaround-use-no-memo).
 
 ### Surprising findings
 
-The **formState** APIs (`errors`, `isDirty`, `isSubmitting`, `touchedFields`, `submitCount`, `isValidating`) all **pass** despite initial expectations. The proxy-based subscription mechanism in react-hook-form triggers re-renders even under the compiler.
+`formState` proxy access (in the same component) is robust under the compiler. The proxy subscription mechanism integrates cleanly with React rendering even when the rest of the form object is interior-mutable.
 
-The **hook-based alternatives** (`useWatch`, `useFormState`) all pass, confirming they are the safer pattern.
+The `useFormContext()` boundary is the remaining sharp edge: as soon as you cross `<FormProvider>` and read `form.watch(...)` or `form.formState` in a compiled child, the compiler memoizes the child's render based on the (stable) form reference, and interior changes don't trigger updates. The `useWatch`/`useFormState` hooks subscribe explicitly and therefore stay correct.
 
 ## How it works
 
 The test harness uses a **Bun plugin** (`compiler-plugin.ts`) that intercepts `.tsx` file imports and transforms them through `@babel/core` with `babel-plugin-react-compiler` before Bun processes them. This simulates what Next.js (or any other build tool) does at build time when the compiler is enabled.
 
 Key details:
+
 - The plugin only transforms files in the project directory, not `node_modules`
-- It targets React 18 (`{ target: '18' }`) to match the most common production setup
+- It targets React 19 (`{ target: '19' }`)
 - Without the `--preload` flag, Bun processes `.tsx` files normally (no compiler transform)
 - The same test file runs in both modes, so any difference in behavior is caused by the compiler
 
@@ -200,7 +172,7 @@ rhf-compiler-compat/
   bunfig.toml               # Bun config (happy-dom test environment)
   happydom.ts               # happy-dom global registrator
   compiler-plugin.ts        # Bun plugin applying babel-plugin-react-compiler
-  rhf-compat.test.tsx       # All 39 test scenarios
+  rhf-compat.test.tsx       # All 40 test scenarios
   run-tests.sh              # Runs both modes and prints comparison
   FINAL-TEST-RESULTS.md     # Detailed test results and analysis
   README.md                 # This file
@@ -208,20 +180,18 @@ rhf-compiler-compat/
 
 ## The workaround: `'use no memo'`
 
-If you encounter these incompatibilities in your own codebase, the current fix is to add the `'use no memo'` directive to affected components:
+If you encounter an incompatibility (today, that means context-based access patterns), you can opt out of memoization for the affected component:
 
 ```tsx
-function MyFormComponent() {
-  'use no memo' // Opt out of React Compiler -- react-hook-form uses interior mutability
-  const { watch, formState } = useForm()
+function ChildReadingForm() {
+  'use no memo' // Opt out of React Compiler -- react-hook-form interior mutability via context
+  const { watch, formState } = useFormContext()
   const value = watch('field')
   // ...
 }
 ```
 
-This tells React Compiler to skip memoizing that specific function. It must be added to **each** component or hook that reads from the form during render.
-
-**However, using `'use no memo'` should be a last resort.** See the [Workarounds section](#workarounds) for safe API alternatives that don't require opting out of the compiler.
+It must be added to **each** component that reads interior-mutable values from the form during render. **Prefer hook-based alternatives (`useWatch({ control })`, `useFormState({ control })`) when available** -- they don't sacrifice the compiler's optimizations elsewhere in the file.
 
 ## Contributing
 
@@ -247,9 +217,9 @@ Contributions are welcome. To add a new test scenario:
 
 ## Long-term outlook
 
-- **react-hook-form v8** (alpha) aims to address compiler compatibility. Once stable, these workarounds can be removed.
-- Prefer `useWatch()` over `form.watch()` and `useFormState()` over `form.formState` -- the hook-based APIs subscribe properly and are more likely to be compiler-compatible.
-- The React Compiler's auto-skip list currently only flags `watch()` from `useForm()`. All other react-hook-form APIs are not auto-skipped. Expanding this coverage is tracked upstream.
+- React Compiler 1.0 GA + react-hook-form 7.7x cover the majority of common access patterns. Most APIs work without any compiler hint.
+- The remaining `useFormContext()` boundary issues are likely fixable either in the compiler (extending the auto-bailout list) or in react-hook-form (changing how `useFormContext()` returns interior-mutable values). Track [#12618](https://github.com/react-hook-form/react-hook-form/issues/12618) for progress.
+- For new code, prefer `useWatch({ control })` and `useFormState({ control })` over `form.watch()` / `form.formState` when crossing component boundaries -- they are explicit subscription APIs and are robust to compiler changes.
 
 ## License
 

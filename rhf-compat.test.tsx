@@ -1,18 +1,21 @@
 /**
  * react-hook-form + React Compiler Compatibility Test Suite
  *
- * This file tests 27 react-hook-form APIs and patterns to determine which
- * ones break when React Compiler is enabled. The compiler auto-memoizes
- * component renders, but react-hook-form relies on interior mutability
- * (objects that change internal state without changing their reference).
- * The compiler can't detect these changes, causing watched values to go stale.
+ * This file tests 27 react-hook-form APIs/patterns plus 13 workaround
+ * variants. The compiler auto-memoizes component renders, but
+ * react-hook-form relies on interior mutability (objects that change
+ * internal state without changing their reference). On the current GA
+ * stack the compiler auto-bails out for most direct `useForm()` access,
+ * so most tests now pass with the compiler enabled. Tests that still
+ * fail isolate where the auto-bailout does not (yet) reach -- mainly
+ * `useFormContext()` boundaries.
  *
  * Run modes:
  *   - Baseline (no compiler):  bun test rhf-compat.test.tsx
  *   - With compiler:           bun test --preload ./compiler-plugin.ts rhf-compat.test.tsx
  *
- * All 27 tests should PASS without the compiler. Failures with the
- * compiler enabled indicate a confirmed incompatibility.
+ * All tests should PASS without the compiler. Failures with the compiler
+ * enabled indicate a confirmed incompatibility for that pattern.
  *
  * See: https://github.com/react-hook-form/react-hook-form/issues/12298
  */
@@ -35,9 +38,10 @@ import {
 // ---------------------------------------------------------------------------
 // Test 1: form.watch('field') updates when input changes
 // ---------------------------------------------------------------------------
-// The most commonly reported issue. form.watch() returns changing values
-// from a stable object reference. The compiler caches the result because
-// the form reference never changes, so the watched value is stale.
+// form.watch() returns changing values from a stable object reference,
+// which historically caused the compiler to cache the result and serve
+// stale values. RC 1.0 GA recognises this pattern and bails out for
+// direct useForm() access, so this test now passes.
 // See: https://github.com/react-hook-form/react-hook-form/issues/11910
 
 test("form.watch('field') updates when input changes", async () => {
@@ -90,8 +94,9 @@ test("form.watch('field') updates when input changes (workaround)", async () => 
 // Test 2: form.watch() (no args) triggers re-render on any field change
 // ---------------------------------------------------------------------------
 // Calling watch() with no arguments subscribes to ALL field changes.
-// Used as a "force re-render on any change" pattern. The compiler
-// eliminates the re-render since it sees the same form reference.
+// Used as a "force re-render on any change" pattern. Historically
+// the compiler eliminated the re-render since it saw the same form
+// reference, but RC 1.0 GA bails out and this test now passes.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12598
 
 test('form.watch() (no args) triggers re-render on any field change', async () => {
@@ -157,9 +162,10 @@ test('form.watch() (no args) triggers re-render on any field change (workaround)
 // ---------------------------------------------------------------------------
 // Test 3: formState.errors appears after invalid submit
 // ---------------------------------------------------------------------------
-// formState is a proxy object with interior mutability. The compiler
-// memoizes access to formState.errors because the formState reference
-// doesn't change, so validation errors never appear in the UI.
+// formState is a proxy object with interior mutability. Reads on the
+// proxy register a subscription, so even though the formState reference
+// itself doesn't change, RHF still triggers re-renders when errors
+// appear. This test passes both with and without the compiler.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('formState.errors appears after invalid submit', async () => {
@@ -208,9 +214,9 @@ test('formState.errors appears after invalid submit', async () => {
 // ---------------------------------------------------------------------------
 // Test 4: formState.isDirty updates after typing
 // ---------------------------------------------------------------------------
-// isDirty is a property on the formState proxy. The compiler caches its
-// value because formState reference is stable. After typing, isDirty
-// should become true but the compiler may serve the stale `false` value.
+// isDirty is a property on the formState proxy. Reading the property
+// registers a subscription with RHF that triggers a re-render when the
+// value flips. The proxy mechanism is robust under the compiler.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('formState.isDirty updates after typing', async () => {
@@ -243,8 +249,8 @@ test('formState.isDirty updates after typing', async () => {
 // Test 5: formState.isSubmitting is true during async submission
 // ---------------------------------------------------------------------------
 // isSubmitting should be true while the submit handler is running.
-// The compiler may cache the initial false value since formState
-// reference is stable.
+// Like other formState fields, the proxy subscription fires re-renders
+// reliably under the compiler.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('formState.isSubmitting is true during async submission', async () => {
@@ -379,8 +385,9 @@ test('useFormContext() propagates updates to children (workaround)', async () =>
 // Test 7: <Controller> updates on input change
 // ---------------------------------------------------------------------------
 // Controller receives the `control` prop which never changes reference.
-// The compiler memoizes Controller, so field.onChange stops triggering
-// re-renders of the controlled input.
+// Internally Controller wraps useController, which subscribes
+// independently of the parent's render path. On the current GA stack
+// this works under the compiler.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('<Controller> updates on input change', async () => {
@@ -443,8 +450,9 @@ test('<Controller> updates on input change (workaround)', async () => {
 // ---------------------------------------------------------------------------
 // Test 8: useController updates on input change
 // ---------------------------------------------------------------------------
-// Same as Controller but using the hook API directly. The control object
-// has the same interior mutability problem.
+// Same as Controller but using the hook API directly. useController
+// has its own subscription, so it works under the compiler on the
+// current GA stack.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('useController updates on input change', async () => {
@@ -640,9 +648,11 @@ test('useFormState() propagates errors after invalid submit', async () => {
 // ---------------------------------------------------------------------------
 // Test 12: getValues() in render returns fresh values after typing
 // ---------------------------------------------------------------------------
-// form.getValues() returns a snapshot of the current values. When called
-// during render, the compiler may cache the result because the form
-// reference is stable. The returned values will be stale.
+// form.getValues() returns a snapshot of the current values. Calling
+// it during render historically risked stale values under the compiler,
+// but RC 1.0 GA bails out for direct useForm() access and this test
+// now passes. Note that getValues() does not subscribe on its own;
+// the watch() call below is what schedules the re-render.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('getValues() in render returns fresh values after typing', async () => {
@@ -699,8 +709,8 @@ test('getValues() in render returns fresh values after typing (workaround)', asy
 // Test 13: getFieldState() in render returns fresh state after interaction
 // ---------------------------------------------------------------------------
 // form.getFieldState() returns the state of a specific field (isTouched,
-// isDirty, error, etc.). Interior mutability means the compiler may
-// cache these values.
+// isDirty, error, etc.). It piggybacks on the formState proxy
+// subscription, so it stays in sync under the compiler.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('getFieldState() in render returns fresh state after interaction', async () => {
@@ -738,9 +748,10 @@ test('getFieldState() in render returns fresh state after interaction', async ()
 // ---------------------------------------------------------------------------
 // Test 14: reset() clears form values and state
 // ---------------------------------------------------------------------------
-// form.reset() is a write operation but causes internal state changes.
-// The compiler may cache the rendered output before reset, causing the
-// UI not to reflect the cleared state.
+// form.reset() is a write operation that resets internal values and
+// state. Historically the compiler could cache the rendered output and
+// keep stale values in the DOM, but on the current GA stack reset()
+// triggers a proper re-render and the test passes.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
 test('reset() clears form values and state', async () => {
@@ -892,7 +903,7 @@ test('reset() clears form values and state (workaround)', async () => {
 // Test 15: formState.touchedFields updates when fields are touched
 // ---------------------------------------------------------------------------
 // formState is a proxy. touchedFields tracks which fields have been focused.
-// Compiler may cache the proxy access, preventing updates from showing.
+// The proxy subscription works under the compiler.
 
 test('formState.touchedFields updates when field is touched', async () => {
   function TouchedFieldsComponent() {
@@ -924,7 +935,8 @@ test('formState.touchedFields updates when field is touched', async () => {
 // ---------------------------------------------------------------------------
 // Test 16: formState.submitCount increments on each submit
 // ---------------------------------------------------------------------------
-// submitCount is a counter in formState. Compiler may cache the initial value.
+// submitCount is a counter in formState. The proxy subscription fires
+// a re-render each time it increments.
 
 test('formState.submitCount increments on each submit', async () => {
   function SubmitCountComponent() {
@@ -964,7 +976,8 @@ test('formState.submitCount increments on each submit', async () => {
 // ---------------------------------------------------------------------------
 // Test 17: formState.isValidating during async validation
 // ---------------------------------------------------------------------------
-// isValidating tracks async validation state. Compiler may not see state changes.
+// isValidating tracks async validation state. The proxy subscription
+// fires re-renders during the async validation lifecycle.
 
 test('formState.isValidating is true during async validation', async () => {
   function AsyncValidationComponent() {
@@ -1013,7 +1026,8 @@ test('formState.isValidating is true during async validation', async () => {
 // ---------------------------------------------------------------------------
 // Test 18: reset() with new defaultValues
 // ---------------------------------------------------------------------------
-// Calling reset(newDefaults) should update form values. Compiler may cache old values.
+// Calling reset(newDefaults) should update form values. On the current
+// GA stack the compiler bails out and the new values reach the DOM.
 
 test('reset() with new defaultValues updates form values', async () => {
   function ResetWithNewDefaultsComponent() {
@@ -1085,8 +1099,9 @@ test('reset() with new defaultValues updates form values (workaround)', async ()
 // ---------------------------------------------------------------------------
 // Test 19: watch() with callback function
 // ---------------------------------------------------------------------------
-// watch((data) => ...) subscribes to all changes with a callback.
-// Compiler may not trigger the callback on form updates.
+// watch((data) => ...) subscribes to all changes with a callback. The
+// callback subscription is registered in useEffect and fires
+// independently of the compiler's render-time memoization.
 
 test('watch() with callback is invoked on form changes', async () => {
   function WatchCallbackComponent() {
@@ -1122,7 +1137,9 @@ test('watch() with callback is invoked on form changes', async () => {
 // Test 20: watch in useEffect dependency array
 // ---------------------------------------------------------------------------
 // Common antipattern: using form.watch('x') in useEffect deps.
-// Compiler caches watch result, so effect won't re-run on form changes.
+// Historically the compiler cached the watch result so the effect
+// never re-ran. On the current GA stack RC bails out for direct
+// useForm() access, so the effect re-runs as expected.
 
 test('watch in useEffect dependency array triggers effect', async () => {
   function WatchInEffectDepsComponent() {
@@ -1193,7 +1210,8 @@ test('watch in useEffect dependency array triggers effect (workaround)', async (
 // Test 21: Conditional fields based on watch (CRITICAL pattern)
 // ---------------------------------------------------------------------------
 // Extremely common: show/hide fields based on watched values.
-// Compiler caches watch result, so conditional fields never appear.
+// Historically the compiler cached the watch result so conditional
+// fields never appeared. On the current GA stack this works.
 
 test('Conditional fields render based on watched value', async () => {
   function ConditionalFieldsComponent() {
@@ -1311,8 +1329,9 @@ test('Conditional fields render based on watched value (workaround)', async () =
 // ---------------------------------------------------------------------------
 // Test 22: Nested watch paths
 // ---------------------------------------------------------------------------
-// Watching nested object paths like 'user.address.city'.
-// Compiler caches the result, nested updates don't propagate.
+// Watching nested object paths like 'user.address.city'. Historically
+// the compiler cached the watched value; on the current GA stack
+// nested updates propagate.
 
 test('Nested watch paths update on nested field changes', async () => {
   function NestedWatchComponent() {
@@ -1378,7 +1397,8 @@ test('Nested watch paths update on nested field changes (workaround)', async () 
 // Test 23: setValue then immediately watch (race condition)
 // ---------------------------------------------------------------------------
 // setValue is async internally. Immediately watching after setValue
-// might return stale value if compiler caches the watch result.
+// returns the updated value because the watch subscription picks up
+// the change before the next paint.
 
 test('setValue then immediate watch returns updated value', async () => {
   function SetValueThenWatchComponent() {
@@ -1416,8 +1436,9 @@ test('setValue then immediate watch returns updated value', async () => {
 // ---------------------------------------------------------------------------
 // Test 24: useFieldArray + watch array (CRITICAL pattern)
 // ---------------------------------------------------------------------------
-// Dynamic form arrays with watch. Extremely common for rates, line items, etc.
-// Compiler caches array watch, so new items don't appear.
+// Dynamic form arrays with watch. Extremely common for rates, line
+// items, etc. Historically the compiler cached the array watch so new
+// items didn't appear; on the current GA stack this works.
 
 test('useFieldArray with watch reflects array changes', async () => {
   function FieldArrayWithWatchComponent() {
@@ -1520,7 +1541,8 @@ test('useFieldArray with watch reflects array changes (workaround)', async () =>
 // Test 25: formState destructuring vs direct access
 // ---------------------------------------------------------------------------
 // Pattern: const { errors, isDirty } = form.formState
-// Compiler may cache the destructured values differently than direct access.
+// Destructuring goes through the same proxy getters as direct access,
+// so subscriptions are registered correctly.
 
 test('formState destructuring reflects changes', async () => {
   function FormStateDestructuringComponent() {
@@ -1642,8 +1664,9 @@ test('formState.isDirty via useFormContext updates after typing (workaround)', a
 // ---------------------------------------------------------------------------
 // Test 27: getValues() with array syntax
 // ---------------------------------------------------------------------------
-// getValues(['field1', 'field2']) returns subset of values.
-// Compiler may cache the result.
+// getValues(['field1', 'field2']) returns a subset of values.
+// Like the no-arg variant, RC 1.0 GA bails out for direct useForm()
+// access so the result stays fresh.
 
 test('getValues() with array argument returns fresh subset', async () => {
   function GetValuesArrayComponent() {
