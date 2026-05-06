@@ -16,7 +16,7 @@ plugin({
           ['@babel/preset-typescript', { isTSX: true, allExtensions: true }],
         ],
         plugins: [
-          ['babel-plugin-react-compiler', { target: '18' }],
+          ['babel-plugin-react-compiler', { target: '19' }],
         ],
       })
       return { contents: result!.code!, loader: 'js' }
