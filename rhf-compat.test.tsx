@@ -1,14 +1,15 @@
 /**
  * react-hook-form + React Compiler Compatibility Test Suite
  *
- * This file tests 28 react-hook-form APIs/patterns plus 14 workaround
+ * This file tests react-hook-form APIs/patterns and their workaround
  * variants. The compiler auto-memoizes component renders, but
  * react-hook-form relies on interior mutability (objects that change
  * internal state without changing their reference). On the current GA
  * stack the compiler auto-bails out for most direct `useForm()` access,
  * so most tests now pass with the compiler enabled. Tests that still
- * fail isolate where the auto-bailout does not (yet) reach -- mainly
- * `useFormContext()` boundaries.
+ * fail isolate where the auto-bailout does not reach: `useFormContext()`
+ * boundaries, and `register`-bound fields whose values are rewritten
+ * after mount (`reset`, `useForm({ values })`).
  *
  * Run modes:
  *   - Baseline (no compiler):  bun test rhf-compat.test.tsx
@@ -746,26 +747,23 @@ test('getFieldState() in render returns fresh state after interaction', async ()
 })
 
 // ---------------------------------------------------------------------------
-// Test 14: reset() clears form values and state
+// Test 14: reset() restores DOM values to non-empty defaultValues
 // ---------------------------------------------------------------------------
-// form.reset() is a write operation that resets internal values and
-// state. Historically the compiler could cache the rendered output and
-// keep stale values in the DOM, but on the current GA stack reset()
-// triggers a proper re-render and the test passes.
+// form.reset() (no args) should restore the form to its original
+// defaultValues, and the DOM input elements should reflect those
+// restored values. The previous version of this test mixed reset()
+// with form.watch() in the render body; watch() establishes a
+// subscription that triggers extra re-renders, which masks any
+// problem with reset()'s own DOM-syncing logic. This rewrite uses
+// only register() and reset() so the DOM assertion isolates reset()
+// alone.
 // See: https://github.com/react-hook-form/react-hook-form/issues/12298
 
-test('reset() clears form values and state', async () => {
+test('reset() restores DOM values to non-empty defaultValues', async () => {
   function ResetComponent() {
-    const form = useForm({ defaultValues: { title: '', description: '' } })
-    const { isDirty } = form.formState
-
-    // Watch all fields so we can display current values
-    const values = form.watch()
-
-    const handleReset = () => {
-      form.reset({ title: '', description: '' })
-    }
-
+    const form = useForm({
+      defaultValues: { title: 'Initial Title', description: 'Initial Desc' },
+    })
     return (
       <form>
         <input data-testid="title-input" {...form.register('title')} />
@@ -773,15 +771,10 @@ test('reset() clears form values and state', async () => {
           data-testid="description-input"
           {...form.register('description')}
         />
-        <span data-testid="title-value">{values.title}</span>
-        <span data-testid="description-value">{values.description}</span>
-        <span data-testid="reset-dirty">
-          {isDirty ? 'dirty' : 'clean'}
-        </span>
         <button
           data-testid="reset-btn"
           type="button"
-          onClick={handleReset}
+          onClick={() => form.reset()}
         >
           Reset
         </button>
@@ -791,73 +784,64 @@ test('reset() clears form values and state', async () => {
 
   render(<ResetComponent />)
 
-  // Fill in the form
-  await userEvent.type(screen.getByTestId('title-input'), 'My Title')
-  await userEvent.type(
-    screen.getByTestId('description-input'),
-    'A description'
-  )
-
-  // Verify values are set
-  await waitFor(() => {
-    expect(screen.getByTestId('title-value').textContent).toBe('My Title')
-    expect(screen.getByTestId('description-value').textContent).toBe(
-      'A description'
-    )
-    expect(screen.getByTestId('reset-dirty').textContent).toBe('dirty')
-  })
-
-  // Click reset
-  await userEvent.click(screen.getByTestId('reset-btn'))
-
-  // Verify values are cleared and form is clean
-  await waitFor(() => {
-    expect(screen.getByTestId('title-value').textContent).toBe('')
-    expect(screen.getByTestId('description-value').textContent).toBe('')
-    expect(screen.getByTestId('reset-dirty').textContent).toBe('clean')
-  })
-
-  // Also verify the actual input elements are cleared
+  // Initial DOM should reflect the non-empty defaultValues.
   await waitFor(() => {
     expect(
       (screen.getByTestId('title-input') as HTMLInputElement).value
-    ).toBe('')
+    ).toBe('Initial Title')
     expect(
       (screen.getByTestId('description-input') as HTMLInputElement).value
-    ).toBe('')
+    ).toBe('Initial Desc')
+  })
+
+  // Replace the typed values.
+  await userEvent.clear(screen.getByTestId('title-input'))
+  await userEvent.type(screen.getByTestId('title-input'), 'My Title')
+  await userEvent.clear(screen.getByTestId('description-input'))
+  await userEvent.type(screen.getByTestId('description-input'), 'A description')
+
+  // Click reset. DOM should restore to defaultValues, not stay at typed
+  // values and not be cleared to ''.
+  await userEvent.click(screen.getByTestId('reset-btn'))
+
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('title-input') as HTMLInputElement).value
+    ).toBe('Initial Title')
+    expect(
+      (screen.getByTestId('description-input') as HTMLInputElement).value
+    ).toBe('Initial Desc')
   })
 })
 
-// Workaround: Use 'use no memo' for reset() as there's no safe alternative.
-// reset() is a mutating operation that needs the component to re-render to reflect changes.
-test('reset() clears form values and state (workaround)', async () => {
-  function ResetComponent() {
-    'use no memo'
-    const form = useForm({ defaultValues: { title: '', description: '' } })
-    const { isDirty } = form.formState
-
-    const values = form.watch()
-
-    const handleReset = () => {
-      form.reset({ title: '', description: '' })
-    }
-
+// Workaround: bind the fields with <Controller> instead of register().
+// Controller wraps useController, which subscribes independently of the
+// parent's render path and tracks reset() updates correctly.
+test('reset() restores DOM values to non-empty defaultValues (workaround)', async () => {
+  function ResetControllerComponent() {
+    const form = useForm({
+      defaultValues: { title: 'Initial Title', description: 'Initial Desc' },
+    })
     return (
       <form>
-        <input data-testid="title-input-w" {...form.register('title')} />
-        <input
-          data-testid="description-input-w"
-          {...form.register('description')}
+        <Controller
+          name="title"
+          control={form.control}
+          render={({ field }) => (
+            <input data-testid="title-input-w" {...field} />
+          )}
         />
-        <span data-testid="title-value-w">{values.title}</span>
-        <span data-testid="description-value-w">{values.description}</span>
-        <span data-testid="reset-dirty-w">
-          {isDirty ? 'dirty' : 'clean'}
-        </span>
+        <Controller
+          name="description"
+          control={form.control}
+          render={({ field }) => (
+            <input data-testid="description-input-w" {...field} />
+          )}
+        />
         <button
           data-testid="reset-btn-w"
           type="button"
-          onClick={handleReset}
+          onClick={() => form.reset()}
         >
           Reset
         </button>
@@ -865,37 +849,31 @@ test('reset() clears form values and state (workaround)', async () => {
     )
   }
 
-  render(<ResetComponent />)
-
-  await userEvent.type(screen.getByTestId('title-input-w'), 'My Title')
-  await userEvent.type(
-    screen.getByTestId('description-input-w'),
-    'A description'
-  )
-
-  await waitFor(() => {
-    expect(screen.getByTestId('title-value-w').textContent).toBe('My Title')
-    expect(screen.getByTestId('description-value-w').textContent).toBe(
-      'A description'
-    )
-    expect(screen.getByTestId('reset-dirty-w').textContent).toBe('dirty')
-  })
-
-  await userEvent.click(screen.getByTestId('reset-btn-w'))
-
-  await waitFor(() => {
-    expect(screen.getByTestId('title-value-w').textContent).toBe('')
-    expect(screen.getByTestId('description-value-w').textContent).toBe('')
-    expect(screen.getByTestId('reset-dirty-w').textContent).toBe('clean')
-  })
+  render(<ResetControllerComponent />)
 
   await waitFor(() => {
     expect(
       (screen.getByTestId('title-input-w') as HTMLInputElement).value
-    ).toBe('')
+    ).toBe('Initial Title')
     expect(
       (screen.getByTestId('description-input-w') as HTMLInputElement).value
-    ).toBe('')
+    ).toBe('Initial Desc')
+  })
+
+  await userEvent.clear(screen.getByTestId('title-input-w'))
+  await userEvent.type(screen.getByTestId('title-input-w'), 'My Title')
+  await userEvent.clear(screen.getByTestId('description-input-w'))
+  await userEvent.type(screen.getByTestId('description-input-w'), 'A description')
+
+  await userEvent.click(screen.getByTestId('reset-btn-w'))
+
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('title-input-w') as HTMLInputElement).value
+    ).toBe('Initial Title')
+    expect(
+      (screen.getByTestId('description-input-w') as HTMLInputElement).value
+    ).toBe('Initial Desc')
   })
 })
 
@@ -1026,18 +1004,18 @@ test('formState.isValidating is true during async validation', async () => {
 // ---------------------------------------------------------------------------
 // Test 18: reset() with new defaultValues
 // ---------------------------------------------------------------------------
-// Calling reset(newDefaults) should update form values. On the current
-// GA stack the compiler bails out and the new values reach the DOM.
+// Calling reset(newDefaults) should update form values and the DOM
+// inputs should reflect the new defaults. Like Test 14 above, the
+// previous version of this test only asserted on a watched value via
+// form.watch() during render, which masks reset()'s own DOM-syncing
+// behavior. This rewrite asserts directly on the DOM input.value.
 
 test('reset() with new defaultValues updates form values', async () => {
   function ResetWithNewDefaultsComponent() {
     const form = useForm({ defaultValues: { city: 'NYC' } })
-    const cityValue = form.watch('city')
-
     return (
       <form>
         <input data-testid="city-input" {...form.register('city')} />
-        <span data-testid="city-value">{cityValue}</span>
         <button
           data-testid="reset-btn"
           type="button"
@@ -1051,29 +1029,34 @@ test('reset() with new defaultValues updates form values', async () => {
 
   render(<ResetWithNewDefaultsComponent />)
 
-  expect(screen.getByTestId('city-value').textContent).toBe('NYC')
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('city-input') as HTMLInputElement).value
+    ).toBe('NYC')
+  })
 
   await userEvent.click(screen.getByTestId('reset-btn'))
 
   await waitFor(() => {
-    expect(screen.getByTestId('city-value').textContent).toBe('LA')
+    expect(
+      (screen.getByTestId('city-input') as HTMLInputElement).value
+    ).toBe('LA')
   })
 })
 
-// Workaround: Use 'use no memo' for reset() as there's no safe alternative.
-// reset() is a mutating operation that needs the component to re-render to reflect changes.
-// Note: We also use useWatch here instead of form.watch() for better practice, but
-// 'use no memo' is still required for reset() to work properly.
+// Workaround: bind the field with <Controller> instead of register().
 test('reset() with new defaultValues updates form values (workaround)', async () => {
-  function ResetWithNewDefaultsComponent() {
-    'use no memo'
+  function ResetWithNewDefaultsControllerComponent() {
     const form = useForm({ defaultValues: { city: 'NYC' } })
-    const cityValue = useWatch({ name: 'city', control: form.control })
-
     return (
       <form>
-        <input data-testid="city-input-w18" {...form.register('city')} />
-        <span data-testid="city-value-w18">{cityValue}</span>
+        <Controller
+          name="city"
+          control={form.control}
+          render={({ field }) => (
+            <input data-testid="city-input-w18" {...field} />
+          )}
+        />
         <button
           data-testid="reset-btn-w18"
           type="button"
@@ -1085,14 +1068,20 @@ test('reset() with new defaultValues updates form values (workaround)', async ()
     )
   }
 
-  render(<ResetWithNewDefaultsComponent />)
+  render(<ResetWithNewDefaultsControllerComponent />)
 
-  expect(screen.getByTestId('city-value-w18').textContent).toBe('NYC')
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('city-input-w18') as HTMLInputElement).value
+    ).toBe('NYC')
+  })
 
   await userEvent.click(screen.getByTestId('reset-btn-w18'))
 
   await waitFor(() => {
-    expect(screen.getByTestId('city-value-w18').textContent).toBe('LA')
+    expect(
+      (screen.getByTestId('city-input-w18') as HTMLInputElement).value
+    ).toBe('LA')
   })
 })
 
@@ -1811,3 +1800,4 @@ test('useForm({ values }) reflects external value changes (Controller)', async (
     ).toBe('LA')
   })
 })
+
