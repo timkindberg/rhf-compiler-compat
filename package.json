@@ -2,6 +2,10 @@
   "name": "rhf-compiler-compat",
   "version": "1.0.0",
   "description": "Test react-hook-form API compatibility with React Compiler",
+  "packageManager": "bun@1.3.13",
+  "engines": {
+    "bun": ">=1.3"
+  },
   "scripts": {
     "test": "bun test",
     "test:compiler": "bun test --preload ./compiler-plugin.ts",
