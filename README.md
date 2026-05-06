@@ -54,15 +54,15 @@ This executes `run-tests.sh`, which outputs:
 ...test output...
 
 === COMPARISON ===
-Baseline (no compiler):  40 passed, 0 failed
-With compiler:           38 passed, 2 failed
+Baseline (no compiler):  42 passed, 0 failed
+With compiler:           39 passed, 3 failed
 ```
 
 ## What it tests
 
-40 test scenarios organized into two groups:
+42 test scenarios organized into two groups:
 
-### Core API tests (27 tests)
+### Core API tests (28 tests)
 
 These test every major `react-hook-form` API used during render:
 
@@ -95,8 +95,9 @@ These test every major `react-hook-form` API used during render:
 | 25  | `formState` destructuring                | Destructure formState, assert fields reflect changes               |
 | 26  | `formState.isDirty` via `useFormContext` | Child reads isDirty from context, assert updates after typing      |
 | 27  | `getValues()` with array arg             | Call getValues(['a', 'b']), assert fresh subset returned           |
+| 28  | `useForm({ values })` (register)         | Change external state, assert register-bound input updates in DOM  |
 
-### Workaround tests (13 tests)
+### Workaround tests (14 tests)
 
 For each core API that fails under the compiler, there is a corresponding workaround test that demonstrates a safe alternative -- typically a hook-based subscription (`useWatch`, `useFormState`) or `'use no memo'` when no alternative exists.
 
@@ -104,54 +105,59 @@ For each core API that fails under the compiler, there is a corresponding workar
 
 Tested with `babel-plugin-react-compiler@1.0.0` (GA), `react-hook-form@^7.75.0`, `react@19.2.5`, `babel-plugin-react-compiler` `target: '19'`:
 
-| API                             | Without Compiler | With Compiler | Notes                                                                                                                                |
-| ------------------------------- | ---------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `form.watch('field')`           | PASS             | PASS          | Auto-bailed-out by RC 1.0 when called on a `useForm()` return value in the same component                                            |
-| `form.watch()` (no args)        | PASS             | PASS          | Same as above                                                                                                                        |
-| `formState.errors`              | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
-| `formState.isDirty`             | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
-| `formState.isSubmitting`        | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
-| `formState.touchedFields`       | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
-| `formState.submitCount`         | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
-| `formState.isValidating`        | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                |
-| `formState` destructuring       | PASS             | PASS          | Destructuring accesses the proxy correctly                                                                                           |
-| `useFormContext()` + watch      | PASS             | **FAIL** ❌   | Auto-bailout doesn't apply through the context boundary -- [#12618](https://github.com/react-hook-form/react-hook-form/issues/12618) |
-| `<Controller>`                  | PASS             | PASS          | Internal `useController` subscribes independently                                                                                    |
-| `useController`                 | PASS             | PASS          | Hook-based subscription works                                                                                                        |
-| `useWatch({ control })`         | PASS             | PASS          | Hook-based subscription works                                                                                                        |
-| `useWatch()` (context)          | PASS             | PASS          | Hook-based subscription works                                                                                                        |
-| `useFormState()`                | PASS             | PASS          | Hook-based subscription works                                                                                                        |
-| `getValues()` in render         | PASS             | PASS          | Auto-bailed-out when called on a `useForm()` return value                                                                            |
-| `getValues(['a','b'])`          | PASS             | PASS          | Array variant works                                                                                                                  |
-| `getFieldState()` in render     | PASS             | PASS          | Works                                                                                                                                |
-| `reset()`                       | PASS             | PASS          | Works (test asserts DOM `input.value` after reset)                                                                                   |
-| `reset()` with new defaults     | PASS             | PASS          | Works                                                                                                                                |
-| `watch()` with callback         | PASS             | PASS          | Callback-based subscription works                                                                                                    |
-| `watch` in useEffect deps       | PASS             | PASS          | Effect re-runs when the watched value changes                                                                                        |
-| Conditional fields via watch    | PASS             | PASS          | Conditional sections render and hide as expected                                                                                     |
-| Nested watch paths              | PASS             | PASS          | Deep property updates propagate                                                                                                      |
-| `setValue` + `watch`            | PASS             | PASS          | Programmatic setValue triggers re-render                                                                                             |
-| `useFieldArray` + `watch`       | PASS             | PASS          | Watched array updates after append                                                                                                   |
-| `formState.isDirty` via context | PASS             | **FAIL** ❌   | Auto-bailout doesn't apply through the context boundary                                                                              |
+| API                              | Without Compiler | With Compiler | Notes                                                                                                                                                                                                                                                            |
+| -------------------------------- | ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `form.watch('field')`            | PASS             | PASS          | Auto-bailed-out by RC 1.0 when called on a `useForm()` return value in the same component                                                                                                                                                                        |
+| `form.watch()` (no args)         | PASS             | PASS          | Same as above                                                                                                                                                                                                                                                    |
+| `formState.errors`               | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                                                                                                                                            |
+| `formState.isDirty`              | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                                                                                                                                            |
+| `formState.isSubmitting`         | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                                                                                                                                            |
+| `formState.touchedFields`        | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                                                                                                                                            |
+| `formState.submitCount`          | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                                                                                                                                            |
+| `formState.isValidating`         | PASS             | PASS          | Proxy subscription triggers re-render                                                                                                                                                                                                                            |
+| `formState` destructuring        | PASS             | PASS          | Destructuring accesses the proxy correctly                                                                                                                                                                                                                       |
+| `useFormContext()` + watch       | PASS             | **FAIL** ❌   | Auto-bailout doesn't apply through the context boundary -- [#12618](https://github.com/react-hook-form/react-hook-form/issues/12618)                                                                                                                             |
+| `<Controller>`                   | PASS             | PASS          | Internal `useController` subscribes independently                                                                                                                                                                                                                |
+| `useController`                  | PASS             | PASS          | Hook-based subscription works                                                                                                                                                                                                                                    |
+| `useWatch({ control })`          | PASS             | PASS          | Hook-based subscription works                                                                                                                                                                                                                                    |
+| `useWatch()` (context)           | PASS             | PASS          | Hook-based subscription works                                                                                                                                                                                                                                    |
+| `useFormState()`                 | PASS             | PASS          | Hook-based subscription works                                                                                                                                                                                                                                    |
+| `getValues()` in render          | PASS             | PASS          | Auto-bailed-out when called on a `useForm()` return value                                                                                                                                                                                                        |
+| `getValues(['a','b'])`           | PASS             | PASS          | Array variant works                                                                                                                                                                                                                                              |
+| `getFieldState()` in render      | PASS             | PASS          | Works                                                                                                                                                                                                                                                            |
+| `reset()`                        | PASS             | PASS          | Works (test asserts DOM `input.value` after reset)                                                                                                                                                                                                               |
+| `reset()` with new defaults      | PASS             | PASS          | Works                                                                                                                                                                                                                                                            |
+| `watch()` with callback          | PASS             | PASS          | Callback-based subscription works                                                                                                                                                                                                                                |
+| `watch` in useEffect deps        | PASS             | PASS          | Effect re-runs when the watched value changes                                                                                                                                                                                                                    |
+| Conditional fields via watch     | PASS             | PASS          | Conditional sections render and hide as expected                                                                                                                                                                                                                 |
+| Nested watch paths               | PASS             | PASS          | Deep property updates propagate                                                                                                                                                                                                                                  |
+| `setValue` + `watch`             | PASS             | PASS          | Programmatic setValue triggers re-render                                                                                                                                                                                                                         |
+| `useFieldArray` + `watch`        | PASS             | PASS          | Watched array updates after append                                                                                                                                                                                                                               |
+| `formState.isDirty` via context  | PASS             | **FAIL** ❌   | Auto-bailout doesn't apply through the context boundary                                                                                                                                                                                                          |
+| `useForm({ values })` (register) | PASS             | **FAIL** ❌   | External `values` prop change does not propagate to register-bound DOM inputs. Internal `_reset(values, { keepFieldsRef: true })` iterates `_names.mount`, but compiler caching of `register(name)` leaves the mount set out of sync. Use `<Controller>` instead |
 
-**Summary: 2 of 27 core tests fail** under the compiler -- both involve `useFormContext()` in a child component reading interior-mutable values. All 13 workaround tests pass.
+**Summary: 3 of 28 core tests fail** under the compiler -- two involve `useFormContext()` in a child component reading interior-mutable values, and one is the `useForm({ values })` + register edit-form pattern. All 14 workaround tests pass.
 
 ## Workarounds
 
-The remaining failure modes both center on `useFormContext()` in a child component:
+The remaining failure modes group into two patterns: `useFormContext()` in a child component, and `useForm({ values })` injecting external state into a register-bound input.
 
-| Breaking API                                     | Recommended Workaround                                                                                                                                               |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useFormContext()` + `form.watch(...)` in child  | Replace with `useWatch({ name, control })`. Pass `control` from `useFormContext()` or as a prop. The hook-based subscription is the supported, compiler-safe pattern |
-| `useFormContext()` + `form.formState.X` in child | Replace with `useFormState({ control })`. Same idea: a hook-based subscription rather than reading the proxy through the context value                               |
+| Breaking API                                     | Recommended Workaround                                                                                                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `useFormContext()` + `form.watch(...)` in child  | Replace with `useWatch({ name, control })`. Pass `control` from `useFormContext()` or as a prop. The hook-based subscription is the supported, compiler-safe pattern                       |
+| `useFormContext()` + `form.formState.X` in child | Replace with `useFormState({ control })`. Same idea: a hook-based subscription rather than reading the proxy through the context value                                                     |
+| `useForm({ values })` + register                 | Bind the field with `<Controller>` instead of `register`. Controller's internal `useController` subscribes independently of the parent's render path and tracks `values` updates correctly |
 
-If neither alternative is acceptable, fall back to `'use no memo'` on the affected child component. See the [`'use no memo'` section](#the-workaround-use-no-memo).
+If none of the alternatives are acceptable, fall back to `'use no memo'` on the affected component. See the [`'use no memo'` section](#the-workaround-use-no-memo).
 
 ### Surprising findings
 
 `formState` proxy access (in the same component) is robust under the compiler. The proxy subscription mechanism integrates cleanly with React rendering even when the rest of the form object is interior-mutable.
 
-The `useFormContext()` boundary is the remaining sharp edge: as soon as you cross `<FormProvider>` and read `form.watch(...)` or `form.formState` in a compiled child, the compiler memoizes the child's render based on the (stable) form reference, and interior changes don't trigger updates. The `useWatch`/`useFormState` hooks subscribe explicitly and therefore stay correct.
+Two sharp edges remain:
+
+- **The `useFormContext()` boundary.** As soon as you cross `<FormProvider>` and read `form.watch(...)` or `form.formState` in a compiled child, the compiler memoizes the child's render based on the (stable) form reference, and interior changes don't trigger updates. The `useWatch`/`useFormState` hooks subscribe explicitly and therefore stay correct.
+- **`useForm({ values })` + register.** Note that `reset()` and `reset({ ... })` (Tests 14 and 18) both pass under the compiler. The `values` prop, however, is implemented as a `useEffect` that calls `_reset(values, { keepFieldsRef: true })`, which iterates `_names.mount` and re-applies values via `setValue`. Compiler caching of the `register(name)` call site means `_names.mount` is not re-populated after the first render, so the loop becomes empty on subsequent `values` changes and the DOM stays stale. Switching to `<Controller>` sidesteps the mount-set entirely.
 
 ## How it works
 

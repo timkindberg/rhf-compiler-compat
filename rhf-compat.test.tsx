@@ -1,7 +1,7 @@
 /**
  * react-hook-form + React Compiler Compatibility Test Suite
  *
- * This file tests 27 react-hook-form APIs/patterns plus 13 workaround
+ * This file tests 28 react-hook-form APIs/patterns plus 14 workaround
  * variants. The compiler auto-memoizes component renders, but
  * react-hook-form relies on interior mutability (objects that change
  * internal state without changing their reference). On the current GA
@@ -1703,5 +1703,111 @@ test('getValues() with array argument returns fresh subset', async () => {
 
   await waitFor(() => {
     expect(screen.getByTestId('values-display').textContent).toBe('John,Doe')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Test 28: useForm({ values }) reflects external value changes (register)
+// ---------------------------------------------------------------------------
+// useForm({ values }) is the typical "fetch then inject" pattern for edit
+// forms. When the external `values` prop changes, RHF internally calls
+// _reset(values, { keepFieldsRef: true }), which iterates _names.mount and
+// re-applies setValue for each field. This test asserts that a register-
+// based input reflects external value changes in the DOM.
+// See: https://github.com/react-hook-form/react-hook-form/issues/12298
+
+test('useForm({ values }) reflects external value changes (register)', async () => {
+  function ValuesRegisterComponent() {
+    const [externalValue, setExternalValue] = React.useState('NYC')
+    const form = useForm({
+      defaultValues: { city: '' },
+      values: { city: externalValue },
+    })
+
+    return (
+      <form>
+        <input data-testid="city-input-28" {...form.register('city')} />
+        <button
+          data-testid="set-la-btn-28"
+          type="button"
+          onClick={() => setExternalValue('LA')}
+        >
+          Refetch as LA
+        </button>
+      </form>
+    )
+  }
+
+  render(<ValuesRegisterComponent />)
+
+  // Initial: external value 'NYC' should be reflected in the DOM input.
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('city-input-28') as HTMLInputElement).value
+    ).toBe('NYC')
+  })
+
+  // Change external state to 'LA'.
+  await userEvent.click(screen.getByTestId('set-la-btn-28'))
+
+  // Assert DOM input value updates to the new external value.
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('city-input-28') as HTMLInputElement).value
+    ).toBe('LA')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Test 29: useForm({ values }) reflects external value changes (Controller)
+// ---------------------------------------------------------------------------
+// Same scenario as Test 28 but using <Controller> to bind the field.
+// Controller wraps useController, which subscribes independently of the
+// parent's render path, so it is expected to track values changes
+// regardless of compiler memoization. Used as the recommended workaround
+// when register-based field binding does not propagate values changes.
+
+test('useForm({ values }) reflects external value changes (Controller)', async () => {
+  function ValuesControllerComponent() {
+    const [externalValue, setExternalValue] = React.useState('NYC')
+    const form = useForm({
+      defaultValues: { city: '' },
+      values: { city: externalValue },
+    })
+
+    return (
+      <form>
+        <Controller
+          name="city"
+          control={form.control}
+          render={({ field }) => (
+            <input data-testid="city-input-29" {...field} />
+          )}
+        />
+        <button
+          data-testid="set-la-btn-29"
+          type="button"
+          onClick={() => setExternalValue('LA')}
+        >
+          Refetch as LA
+        </button>
+      </form>
+    )
+  }
+
+  render(<ValuesControllerComponent />)
+
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('city-input-29') as HTMLInputElement).value
+    ).toBe('NYC')
+  })
+
+  await userEvent.click(screen.getByTestId('set-la-btn-29'))
+
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId('city-input-29') as HTMLInputElement).value
+    ).toBe('LA')
   })
 })
