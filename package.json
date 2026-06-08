@@ -7,15 +7,18 @@
     "bun": ">=1.3"
   },
   "scripts": {
-    "test": "bun test",
-    "test:compiler": "bun test --preload ./compiler-plugin.ts",
-    "test:both": "bash run-tests.sh"
+    "test": "bun test rhf-compat.test.tsx",
+    "test:compiler": "bun test --preload ./compiler-plugin.ts rhf-compat.test.tsx",
+    "test:both": "bash run-tests.sh",
+    "test:regressions": "bun test holes.test.tsx && bun test --preload ./compiler-plugin.ts holes.test.tsx",
+    "test:forced-memo": "bun test forced.test.tsx && bun test --preload ./compiler-plugin.ts forced.test.tsx",
+    "inspect": "bun inspect-compile.mjs && bun inspect-output.mjs && bun inspect-destructure.mjs"
   },
   "dependencies": {
     "react": "^19.2.5",
+    "react-compiler-runtime": "^1.0.0",
     "react-dom": "^19.2.5",
-    "react-hook-form": "^7.75.0",
-    "react-compiler-runtime": "^1.0.0"
+    "react-hook-form": "^8.0.0-beta.2"
   },
   "devDependencies": {
     "@babel/core": "^7.26.7",

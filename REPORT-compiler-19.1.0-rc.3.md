@@ -1,6 +1,6 @@
 # react-hook-form + React Compiler Compatibility Tests — `babel-plugin-react-compiler@19.1.0-rc.3`
 
-> _This report covers `babel-plugin-react-compiler@19.1.0-rc.3` + React 18 + `react-hook-form@^7.42.1`. For results on `babel-plugin-react-compiler@1.0.0` (GA) + React 19 + `react-hook-form@^7.75.0`, see [REPORT-compiler-1.0.0.md](./REPORT-compiler-1.0.0.md)._
+> _This report covers `babel-plugin-react-compiler@19.1.0-rc.3` + React 18 + `react-hook-form@^7.42.1`. For newer stacks see [REPORT-compiler-1.0.0.md](./REPORT-compiler-1.0.0.md) (React 19 + `react-hook-form@^7.75.0`) and [REPORT-rhf-8.0.0-beta.2.md](./REPORT-rhf-8.0.0-beta.2.md) (`react-hook-form@8.0.0-beta.2`)._
 
 A standalone test harness that verifies which `react-hook-form` APIs work correctly under [React Compiler](https://react.dev/learn/react-compiler). Each test renders a minimal component, interacts with it, and asserts expected behavior -- first without the compiler (baseline), then with it enabled, producing a clear pass/fail compatibility matrix.
 

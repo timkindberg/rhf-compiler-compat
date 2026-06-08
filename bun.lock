@@ -8,7 +8,7 @@
         "react": "^19.2.5",
         "react-compiler-runtime": "^1.0.0",
         "react-dom": "^19.2.5",
-        "react-hook-form": "^7.75.0",
+        "react-hook-form": "^8.0.0-beta.2",
       },
       "devDependencies": {
         "@babel/core": "^7.26.7",
@@ -273,7 +273,7 @@
 
     "react-dom": ["react-dom@19.2.5", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.5" } }, "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="],
 
-    "react-hook-form": ["react-hook-form@7.75.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17 || ^18 || ^19" } }, "sha512-Ovv94H+0p3sJ7B9B5QxPuCP1u8V/cHuVGyH55cSwodYDtoJwK+fqk3vjfIgSX59I2U/bU4z0nRJ9HMLpNiWEmw=="],
+    "react-hook-form": ["react-hook-form@8.0.0-beta.2", "", { "peerDependencies": { "react": "^16.8.0 || ^17 || ^18 || ^19" } }, "sha512-DnxY4c+yjtiUBSjvR05upmK260IFTYGrY85KvI9cKsBf9ginEY2ydS1YUaDLkByw+CfzjQjR1Rwgd1wm9cKxgA=="],
 
     "react-is": ["react-is@17.0.2", "", {}, "sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w=="],
 

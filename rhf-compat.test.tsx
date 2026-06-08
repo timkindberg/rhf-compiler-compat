@@ -1086,24 +1086,28 @@ test('reset() with new defaultValues updates form values (workaround)', async ()
 })
 
 // ---------------------------------------------------------------------------
-// Test 19: watch() with callback function
+// Test 19: subscribe() callback function (v8 replacement for watch(callback))
 // ---------------------------------------------------------------------------
-// watch((data) => ...) subscribes to all changes with a callback. The
-// callback subscription is registered in useEffect and fires
+// v8 REMOVED the watch((data) => ...) callback API (breaking change).
+// The documented replacement is form.subscribe({ formState: { values: true },
+// callback }). The subscription is registered in useEffect and fires
 // independently of the compiler's render-time memoization.
 
-test('watch() with callback is invoked on form changes', async () => {
-  function WatchCallbackComponent() {
+test('subscribe() callback is invoked on form changes', async () => {
+  function SubscribeCallbackComponent() {
     const form = useForm({ defaultValues: { message: '' } })
     const [lastValue, setLastValue] = React.useState('')
 
-    // Subscribe to all form changes with callback
+    // v8: watch(callback) removed; subscribe is the supported replacement
     React.useEffect(() => {
-      const subscription = form.watch((data) => {
-        setLastValue(data.message || '')
+      const unsubscribe = form.subscribe({
+        formState: { values: true },
+        callback: ({ values }) => {
+          setLastValue(values.message || '')
+        },
       })
-      return () => subscription.unsubscribe()
-    }, [form.watch])
+      return () => unsubscribe()
+    }, [form.subscribe])
 
     return (
       <form>
@@ -1113,7 +1117,7 @@ test('watch() with callback is invoked on form changes', async () => {
     )
   }
 
-  render(<WatchCallbackComponent />)
+  render(<SubscribeCallbackComponent />)
 
   await userEvent.type(screen.getByTestId('message-input'), 'hello')
 
@@ -1446,7 +1450,7 @@ test('useFieldArray with watch reflects array changes', async () => {
 
         {fields.map((field, index) => (
           <input
-            key={field.id}
+            key={field.key}
             data-testid={`item-${index}`}
             {...form.register(`items.${index}.name` as const)}
           />
@@ -1496,7 +1500,7 @@ test('useFieldArray with watch reflects array changes (workaround)', async () =>
 
         {fields.map((field, index) => (
           <input
-            key={field.id}
+            key={field.key}
             data-testid={`item-w-${index}`}
             {...form.register(`items.${index}.name` as const)}
           />
